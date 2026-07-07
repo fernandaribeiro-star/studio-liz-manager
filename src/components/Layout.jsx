@@ -27,11 +27,11 @@ export function Layout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-purple-50">
+    <div className="flex min-h-screen" style={{ background: 'var(--bg)' }}>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col lg:ml-60 min-h-screen">
         <Topbar onMenuClick={() => setSidebarOpen(true)} title={getTitle()} />
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-6 md:p-10 lg:p-12">
           <Outlet />
         </main>
       </div>

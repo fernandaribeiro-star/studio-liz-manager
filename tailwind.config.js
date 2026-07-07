@@ -27,9 +27,17 @@ export default {
       },
       fontFamily: {
         sans: ['DM Sans', 'sans-serif'],
+        serif: ['Cormorant Garamond', 'serif'],
       },
       borderRadius: {
-        '2xl': '16px',
+        DEFAULT: '2px',
+        sm: '2px',
+        md: '2px',
+        lg: '3px',
+        xl: '3px',
+        '2xl': '3px',
+        '3xl': '3px',
+        full: '9999px',
       }
     },
   },

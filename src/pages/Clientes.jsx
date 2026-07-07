@@ -14,7 +14,7 @@ const maskPhone = v => {
   return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
 }
 
-const cores = ['#6B46C1','#7C3AED','#9333EA','#A855F7','#8B5CF6','#6366F1','#EC4899','#F59E0B']
+const cores = ['oklch(32% .07 325)','oklch(28% .07 310)','oklch(36% .08 335)','oklch(25% .06 320)','oklch(30% .09 300)','oklch(38% .06 345)']
 const corAvatar = nome => cores[(nome?.charCodeAt(0) || 0) % cores.length]
 const iniciais = nome => nome?.split(' ').slice(0,2).map(n => n[0]).join('').toUpperCase() || '?'
 
@@ -117,37 +117,37 @@ export default function Clientes() {
         {filtrados.map(c => (
           <div key={c.id} className="card hover:shadow-md transition-shadow group">
             <div className="flex items-start gap-3">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0"
-                style={{ background: corAvatar(c.nome) }}>
+              <div className="w-12 h-12 flex items-center justify-center text-white shrink-0"
+                style={{ background: corAvatar(c.nome), borderRadius: 2, fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 600 }}>
                 {iniciais(c.nome)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold text-purple-900">{c.nome}</p>
-                  {isVip(c) && <span className="badge bg-yellow-100 text-yellow-700 flex items-center gap-0.5"><Star size={10} />VIP</span>}
-                  {!c.ativa && <span className="badge bg-gray-100 text-gray-500">Inativa</span>}
-                  {isAniv(c) && <span className="badge bg-pink-100 text-pink-600">🎂</span>}
+                  {isVip(c) && <span className="badge flex items-center gap-0.5" style={{ background: 'oklch(93% .05 78)', color: 'var(--accent-dark)' }}><Star size={10} />VIP</span>}
+                  {!c.ativa && <span className="badge" style={{ background: 'var(--border)', color: 'var(--muted)' }}>Inativa</span>}
+                  {isAniv(c) && <span className="badge" style={{ background: 'oklch(94% .03 350)', color: 'oklch(50% .1 350)' }}>Aniversário</span>}
                 </div>
-                <p className="text-sm text-gray-500">{c.telefone}</p>
-                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
-                  <span>Total: <b className="text-purple-700">{fmt(totalGasto(c))}</b></span>
-                  <span>Último: <b>{ultimoAtend(c) ? ultimoAtend(c).toLocaleDateString('pt-BR') : '—'}</b></span>
-                  {diasSemRetorno(c) > 30 && <span className="text-orange-500">⚠ {diasSemRetorno(c)}d sem retorno</span>}
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>{c.telefone}</p>
+                <div className="flex items-center gap-3 mt-1 text-xs flex-wrap" style={{ color: 'var(--muted)' }}>
+                  <span>Total: <b style={{ color: 'var(--primary)' }}>{fmt(totalGasto(c))}</b></span>
+                  <span>Último: <b style={{ color: 'var(--ink-soft)' }}>{ultimoAtend(c) ? ultimoAtend(c).toLocaleDateString('pt-BR') : '—'}</b></span>
+                  {diasSemRetorno(c) > 30 && <span style={{ color: 'var(--danger)' }}>{diasSemRetorno(c)}d sem retorno</span>}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-purple-50">
+            <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
               <Link to={`/clientes/${c.id}`} className="btn-ghost py-1.5 text-xs flex-1 justify-center">
                 Ver ficha <ChevronRight size={14} />
               </Link>
               <button onClick={() => window.open(`https://wa.me/55${c.telefone?.replace(/\D/g,'')}`, '_blank')}
-                className="p-2 hover:bg-green-50 rounded-xl text-green-600 transition-colors">
+                className="p-2 transition-colors" style={{ color: 'var(--success)', borderRadius: 2 }}>
                 <MessageCircle size={16} />
               </button>
-              <button onClick={() => openEdit(c)} className="p-2 hover:bg-purple-50 rounded-xl text-purple-500 transition-colors">
+              <button onClick={() => openEdit(c)} className="p-2 transition-colors" style={{ color: 'var(--primary)', borderRadius: 2 }}>
                 <Pencil size={16} />
               </button>
-              <button onClick={() => setConfirmDel(c.id)} className="p-2 hover:bg-red-50 rounded-xl text-red-400 transition-colors">
+              <button onClick={() => setConfirmDel(c.id)} className="p-2 transition-colors" style={{ color: 'var(--danger)', borderRadius: 2 }}>
                 <Trash2 size={16} />
               </button>
             </div>
