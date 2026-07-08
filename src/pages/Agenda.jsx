@@ -108,17 +108,40 @@ export default function Agenda() {
   async function mudarStatus(ag, novoStatus) {
     await supabase.from('agendamentos').update({ status: novoStatus }).eq('id', ag.id)
     if (novoStatus === 'concluido') {
-      await supabase.from('atendimentos').insert({
-        cliente_id: ag.cliente_id,
-        procedimento_id: ag.procedimento_id,
-        agendamento_id: ag.id,
-        data_hora: ag.data_hora,
-        valor: ag.valor,
-        pagamento: ag.pagamento,
-        obs: ag.obs,
-        sessao_numero: 1,
-        sessao_total: 1,
-      })
+      // Check if atendimento already exists for this agendamento
+      const { data: existente } = await supabase.from('atendimentos').select('id').eq('agendamento_id', ag.id).single()
+      if (!existente) {
+        // Check active session for this client+procedure
+        const { data: sessao } = await supabase.from('sessoes')
+          .select('*').eq('cliente_id', ag.cliente_id).eq('procedimento_id', ag.procedimento_id).eq('status', 'ativa').single()
+        const sessaoNumero = sessao ? (sessao.sessoes_feitas || 0) + 1 : 1
+        const sessaoTotal = sessao ? sessao.total_sessoes : 1
+        await supabase.from('atendimentos').insert({
+          cliente_id: ag.cliente_id,
+          procedimento_id: ag.procedimento_id,
+          agendamento_id: ag.id,
+          data_hora: ag.data_hora,
+          valor: ag.valor,
+          pagamento: ag.pagamento,
+          obs: ag.obs,
+          sessao_numero: sessaoNumero,
+          sessao_total: sessaoTotal,
+          sessao_id: sessao?.id || null,
+        })
+        // Update the session if one exists
+        if (sessao) {
+          const novaFeitas = sessaoNumero
+          const hoje2 = new Date().toISOString().split('T')[0]
+          const proxima = new Date(); proxima.setDate(proxima.getDate() + (sessao.intervalo_dias || 21))
+          const concluida = novaFeitas >= sessaoTotal
+          await supabase.from('sessoes').update({
+            sessoes_feitas: novaFeitas,
+            data_ultima: hoje2,
+            data_proxima: concluida ? null : proxima.toISOString().split('T')[0],
+            status: concluida ? 'concluida' : 'ativa',
+          }).eq('id', sessao.id)
+        }
+      }
       showToast('Concluído e atendimento criado ✓')
     } else if (novoStatus === 'faltou') {
       const c = ag.clientes

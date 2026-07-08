@@ -63,14 +63,17 @@ export default function Dashboard() {
       return ultimo < limite30
     }).slice(0, 5)
 
-    const diaHoje = agora.getDay()
-    const inicioSem = new Date(agora); inicioSem.setDate(agora.getDate() - diaHoje)
-    const fimSem = new Date(agora); fimSem.setDate(agora.getDate() + (6 - diaHoje))
     const aniv = (todos || []).filter(c => {
       if (!c.nascimento) return false
       const nasc = new Date(c.nascimento + 'T00:00:00')
-      const teste = new Date(agora.getFullYear(), nasc.getMonth(), nasc.getDate())
-      return teste >= inicioSem && teste <= fimSem
+      const mes = nasc.getMonth()
+      const dia = nasc.getDate()
+      for (let i = 0; i <= 7; i++) {
+        const d = new Date(agora)
+        d.setDate(d.getDate() + i)
+        if (d.getMonth() === mes && d.getDate() === dia) return true
+      }
+      return false
     })
 
     setData({
@@ -170,7 +173,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card">
-          <p className="label mb-3">Aniversariantes da semana</p>
+          <p className="label mb-3">Aniversariantes — próximos 7 dias</p>
           {data.aniversariantes.length === 0 && <p className="text-xs" style={{ color: 'var(--muted)' }}>Nenhum aniversariante</p>}
           <div className="space-y-2">
             {data.aniversariantes.map(c => (

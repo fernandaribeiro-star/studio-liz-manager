@@ -129,6 +129,14 @@ body {
     border-bottom: 1px solid var(--border);
     padding: 14px 8px;
   }
+
+  .table-td-row:hover > .table-td {
+    background: var(--primary-soft);
+  }
+
+  .table-td-row:last-child > .table-td {
+    border-bottom: none;
+  }
 }
 
 ::-webkit-scrollbar { width: 5px; }

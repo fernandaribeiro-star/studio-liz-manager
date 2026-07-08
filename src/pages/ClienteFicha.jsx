@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { showToast } from '../components/Toast'
 import { Modal } from '../components/Modal'
-import { ArrowLeft, Camera, X, ZoomIn, Upload, Pencil } from 'lucide-react'
+import { ArrowLeft, Camera, X, ZoomIn, Upload, Pencil, Save } from 'lucide-react'
 
 const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0)
 const fmtDT = s => s ? new Date(s).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'
@@ -11,6 +11,36 @@ const fmtDate = s => s ? new Date(s+'T00:00:00').toLocaleDateString('pt-BR') : '
 const iniciais = nome => nome?.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase() || '?'
 
 const TABS = ['Resumo','Histórico','Fotos','Anamnese']
+
+const emptyAnamnese = {
+  queixa_principal: '',
+  historico_saude: '',
+  doencas: '',
+  cirurgias: '',
+  medicamentos: '',
+  alergias: '',
+  gestacao: false,
+  lactacao: false,
+  contraindicacoes: '',
+  habitos_vida: '',
+  consumo_agua: '',
+  alimentacao: '',
+  tabagismo: false,
+  alcool: '',
+  objetivos: '',
+  obs: '',
+}
+
+function parseAnamnese(raw) {
+  if (!raw) return { ...emptyAnamnese }
+  try {
+    const parsed = JSON.parse(raw)
+    return { ...emptyAnamnese, ...parsed }
+  } catch {
+    // legacy: plain text → put in obs
+    return { ...emptyAnamnese, obs: raw }
+  }
+}
 
 export default function ClienteFicha() {
   const { id } = useParams()
@@ -25,7 +55,7 @@ export default function ClienteFicha() {
   const [modalFoto, setModalFoto] = useState(false)
   const [pendingFile, setPendingFile] = useState(null)
   const [editAnamnese, setEditAnamnese] = useState(false)
-  const [anamneseText, setAnamneseText] = useState('')
+  const [anamnese, setAnamnese] = useState(emptyAnamnese)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef()
 
@@ -42,12 +72,12 @@ export default function ClienteFicha() {
     setAtendimentos(a || [])
     setFotos(f || [])
     setSessoes(s || [])
-    setAnamneseText(c?.anamnese || '')
+    setAnamnese(parseAnamnese(c?.anamnese))
   }
 
   async function saveAnamnese() {
     setSaving(true)
-    await supabase.from('clientes').update({ anamnese: anamneseText }).eq('id', id)
+    await supabase.from('clientes').update({ anamnese: JSON.stringify(anamnese) }).eq('id', id)
     setEditAnamnese(false); setSaving(false)
     showToast('Anamnese salva ✓'); load()
   }
@@ -75,7 +105,6 @@ export default function ClienteFicha() {
 
   const totalGasto = atendimentos.reduce((s, a) => s + (a.valor || 0), 0)
 
-  // Agrupar fotos por mês/ano
   const fotosGrupadas = fotos.reduce((acc, f) => {
     const d = new Date(f.created_at)
     const k = d.toLocaleDateString('pt-BR', { month:'long', year:'numeric' })
@@ -84,44 +113,48 @@ export default function ClienteFicha() {
     return acc
   }, {})
 
-  if (!cliente) return <div className="text-center py-20 text-gray-400">Carregando...</div>
+  if (!cliente) return <div className="text-center py-20" style={{ color: 'var(--muted)' }}>Carregando...</div>
+
+  const S = ({ children }) => <span style={{ color: 'var(--muted)' }}>{children}</span>
 
   return (
     <div className="space-y-5">
-      <Link to="/clientes" className="inline-flex items-center gap-1 text-purple-600 hover:underline text-sm">
+      <Link to="/clientes" className="inline-flex items-center gap-1 text-sm hover:underline" style={{ color: 'var(--primary)' }}>
         <ArrowLeft size={14} /> Voltar
       </Link>
 
       {/* Header */}
       <div className="card flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center text-white text-2xl font-bold shrink-0">
+        <div className="flex items-center justify-center text-white shrink-0"
+          style={{ width: 64, height: 64, borderRadius: 3, background: 'var(--primary)', fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600 }}>
           {iniciais(cliente.nome)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-xl font-bold text-purple-900">{cliente.nome}</h2>
-            {!cliente.ativa && <span className="badge bg-gray-100 text-gray-500 text-xs">Inativa</span>}
+            <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: 'var(--ink)' }}>{cliente.nome}</h2>
+            {!cliente.ativa && <span className="badge" style={{ background: 'var(--border)', color: 'var(--muted)' }}>Inativa</span>}
           </div>
-          <div className="flex flex-wrap gap-3 text-sm text-gray-500 mt-1">
-            {cliente.telefone && <span>📱 {cliente.telefone}</span>}
-            {cliente.email && <span>✉ {cliente.email}</span>}
-            {cliente.nascimento && <span>🎂 {fmtDate(cliente.nascimento)}</span>}
-            {cliente.instagram && <span>📷 {cliente.instagram}</span>}
+          <div className="flex flex-wrap gap-4 mt-1" style={{ fontSize: 13, color: 'var(--muted)' }}>
+            {cliente.telefone && <span>{cliente.telefone}</span>}
+            {cliente.email && <span>{cliente.email}</span>}
+            {cliente.nascimento && <span>Nasc. {fmtDate(cliente.nascimento)}</span>}
+            {cliente.instagram && <span>{cliente.instagram}</span>}
           </div>
         </div>
         {cliente.telefone && (
           <a href={`https://wa.me/55${cliente.telefone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-            className="btn-ghost py-2 text-green-600 border-green-200">
+            className="btn-ghost py-2" style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
             WhatsApp
           </a>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-purple-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 p-1 w-fit" style={{ background: 'var(--primary-soft)', borderRadius: 3 }}>
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab===t ? 'bg-white text-purple-700 shadow-sm' : 'text-purple-500 hover:text-purple-700'}`}>
+            className="px-4 py-1.5 text-sm font-medium transition-colors"
+            style={{ borderRadius: 2, background: tab===t ? 'var(--surface)' : 'transparent', color: tab===t ? 'var(--primary)' : 'var(--muted)', boxShadow: tab===t ? '0 1px 3px rgba(0,0,0,.08)' : 'none' }}>
             {t}
           </button>
         ))}
@@ -130,34 +163,30 @@ export default function ClienteFicha() {
       {/* Resumo */}
       {tab === 'Resumo' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="card text-center">
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Total gasto</p>
-            <p className="text-2xl font-bold text-purple-700 mt-1">{fmt(totalGasto)}</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Atendimentos</p>
-            <p className="text-2xl font-bold text-purple-700 mt-1">{atendimentos.length}</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Último atendimento</p>
-            <p className="text-sm font-bold text-purple-700 mt-1">{atendimentos[0] ? fmtDT(atendimentos[0].data_hora) : '—'}</p>
-          </div>
-          <div className="card text-center">
-            <p className="text-xs text-gray-400 uppercase tracking-wide">Sessões ativas</p>
-            <p className="text-2xl font-bold text-purple-700 mt-1">{sessoes.filter(s=>s.status==='ativa').length}</p>
-          </div>
+          {[
+            { label: 'Total gasto', val: fmt(totalGasto) },
+            { label: 'Atendimentos', val: atendimentos.length },
+            { label: 'Último atend.', val: atendimentos[0] ? fmtDT(atendimentos[0].data_hora) : '—' },
+            { label: 'Sessões ativas', val: sessoes.filter(s=>s.status==='ativa').length },
+          ].map(({ label, val }) => (
+            <div key={label} className="card text-center">
+              <p className="label">{label}</p>
+              <p className="stat-num mt-1" style={{ fontSize: 24 }}>{val}</p>
+            </div>
+          ))}
           {sessoes.length > 0 && (
             <div className="card md:col-span-4">
-              <h3 className="font-semibold text-purple-900 mb-3 text-sm">Sessões em andamento</h3>
+              <h3 className="section-title mb-3" style={{ fontSize: 16 }}>Sessões em andamento</h3>
               {sessoes.map(s => (
-                <div key={s.id} className="flex items-center justify-between py-2 border-b border-purple-50 last:border-0">
+                <div key={s.id} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border)' }}>
                   <div>
-                    <p className="text-sm font-medium text-purple-900">{s.procedimentos?.nome}</p>
-                    <p className="text-xs text-gray-400">{s.sessoes_feitas}/{s.total_sessoes} sessões · Próxima: {fmtDate(s.data_proxima)}</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{s.procedimentos?.nome}</p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>{s.sessoes_feitas}/{s.total_sessoes} sessões · Próxima: {fmtDate(s.data_proxima)}</p>
                   </div>
                   <div className="flex gap-1">
                     {Array.from({length: s.total_sessoes}).map((_, i) => (
-                      <div key={i} className={`w-3 h-3 rounded-full border-2 ${i < s.sessoes_feitas ? 'bg-purple-600 border-purple-600' : 'border-purple-200'}`} />
+                      <div key={i} className="w-3 h-3 rounded-full border-2"
+                        style={{ background: i < s.sessoes_feitas ? 'var(--primary)' : 'transparent', borderColor: i < s.sessoes_feitas ? 'var(--primary)' : 'var(--border)' }} />
                     ))}
                   </div>
                 </div>
@@ -172,26 +201,26 @@ export default function ClienteFicha() {
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-purple-100 text-xs text-gray-400 uppercase tracking-wide">
-                <th className="text-left py-2 pr-4">Data</th>
-                <th className="text-left py-2 pr-4">Procedimento</th>
-                <th className="text-left py-2 pr-4">Valor</th>
-                <th className="text-left py-2 pr-4">Pagamento</th>
-                <th className="text-left py-2">Sessão</th>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['Data','Procedimento','Valor','Pagamento','Sessão'].map(h => (
+                  <th key={h} className="table-th text-left pr-4">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {atendimentos.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-8 text-gray-400">Nenhum atendimento registrado</td></tr>
+                <tr><td colSpan={5} className="text-center py-10" style={{ color: 'var(--muted)' }}>Nenhum atendimento registrado</td></tr>
               )}
               {atendimentos.map(a => (
-                <tr key={a.id} className="border-b border-purple-50 hover:bg-purple-50/40">
-                  <td className="py-2.5 pr-4 text-gray-500">{fmtDT(a.data_hora)}</td>
-                  <td className="py-2.5 pr-4 font-medium text-purple-900">{a.procedimentos?.nome}</td>
-                  <td className="py-2.5 pr-4 text-green-700 font-semibold">{fmt(a.valor)}</td>
-                  <td className="py-2.5 pr-4 capitalize text-gray-500">{a.pagamento?.replace('_',' ')}</td>
-                  <td className="py-2.5">
-                    {a.sessao_total > 1 ? <span className="badge bg-purple-100 text-purple-700">{a.sessao_numero}/{a.sessao_total}</span> : '—'}
+                <tr key={a.id} className="table-td-row">
+                  <td className="table-td pr-4">{fmtDT(a.data_hora)}</td>
+                  <td className="table-td pr-4 font-medium" style={{ color: 'var(--ink)' }}>{a.procedimentos?.nome}</td>
+                  <td className="table-td pr-4 font-semibold" style={{ color: 'var(--success)' }}>{fmt(a.valor)}</td>
+                  <td className="table-td pr-4 capitalize">{a.pagamento?.replace('_',' ')}</td>
+                  <td className="table-td">
+                    {a.sessao_total > 1
+                      ? <span className="badge" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{a.sessao_numero}/{a.sessao_total}</span>
+                      : '—'}
                   </td>
                 </tr>
               ))}
@@ -210,17 +239,18 @@ export default function ClienteFicha() {
 
           {Object.keys(fotosGrupadas).length === 0 && (
             <div className="card text-center py-12">
-              <Camera size={40} className="mx-auto text-purple-200 mb-3" />
-              <p className="text-gray-400">Nenhuma foto cadastrada</p>
+              <Camera size={40} className="mx-auto mb-3" style={{ color: 'var(--border)' }} />
+              <p style={{ color: 'var(--muted)' }}>Nenhuma foto cadastrada</p>
             </div>
           )}
 
           {Object.entries(fotosGrupadas).map(([mes, fts]) => (
             <div key={mes}>
-              <p className="text-xs font-semibold text-purple-500 uppercase tracking-wide mb-2 capitalize">{mes}</p>
+              <p className="label mb-2 capitalize">{mes}</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {fts.map(f => (
-                  <div key={f.id} className="relative group cursor-pointer rounded-xl overflow-hidden border border-purple-100"
+                  <div key={f.id} className="relative group cursor-pointer overflow-hidden"
+                    style={{ borderRadius: 3, border: '1px solid var(--border)' }}
                     onClick={() => setLightbox(f)}>
                     <img src={f.url} alt={f.legenda||''} className="w-full h-32 object-cover" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
@@ -239,31 +269,77 @@ export default function ClienteFicha() {
 
       {/* Anamnese */}
       {tab === 'Anamnese' && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-purple-900">Anamnese</h3>
-            {!editAnamnese && (
-              <button onClick={() => setEditAnamnese(true)} className="btn-ghost py-1.5 text-xs">
-                <Pencil size={13} /> Editar
-              </button>
-            )}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="section-title">Ficha de Anamnese</p>
+            {!editAnamnese
+              ? <button className="btn-ghost py-1.5 text-xs" onClick={() => setEditAnamnese(true)}><Pencil size={13} /> Editar</button>
+              : <div className="flex gap-2">
+                  <button className="btn-ghost py-1.5 text-xs" onClick={() => { setEditAnamnese(false); setAnamnese(parseAnamnese(cliente.anamnese)) }}>Cancelar</button>
+                  <button className="btn-primary py-1.5 text-xs" onClick={saveAnamnese} disabled={saving}>
+                    <Save size={13} /> {saving ? 'Salvando...' : 'Salvar'}
+                  </button>
+                </div>
+            }
           </div>
-          {editAnamnese ? (
-            <div className="space-y-3">
-              <textarea className="input" rows={8} value={anamneseText} onChange={e => setAnamneseText(e.target.value)}
-                placeholder="Alergias, medicamentos, restrições, histórico médico..." />
-              <div className="flex gap-2">
-                <button className="btn-ghost" onClick={() => setEditAnamnese(false)}>Cancelar</button>
-                <button className="btn-primary" onClick={saveAnamnese} disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
+
+          {/* Seção: Queixa */}
+          <AnaSection title="Queixa Principal">
+            <AnaField label="Queixa / motivo do tratamento" edit={editAnamnese}
+              value={anamnese.queixa_principal} onChange={v => setAnamnese(p => ({...p, queixa_principal: v}))} multiline />
+          </AnaSection>
+
+          {/* Seção: Histórico de saúde */}
+          <AnaSection title="Histórico de Saúde">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <AnaField label="Doenças / diagnósticos" edit={editAnamnese}
+                value={anamnese.doencas} onChange={v => setAnamnese(p => ({...p, doencas: v}))} multiline />
+              <AnaField label="Cirurgias realizadas" edit={editAnamnese}
+                value={anamnese.cirurgias} onChange={v => setAnamnese(p => ({...p, cirurgias: v}))} multiline />
+              <AnaField label="Medicamentos em uso" edit={editAnamnese}
+                value={anamnese.medicamentos} onChange={v => setAnamnese(p => ({...p, medicamentos: v}))} multiline />
+              <AnaField label="Alergias" edit={editAnamnese}
+                value={anamnese.alergias} onChange={v => setAnamnese(p => ({...p, alergias: v}))} multiline />
             </div>
-          ) : (
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">
-              {anamneseText || <span className="text-gray-400 italic">Nenhuma informação registrada.</span>}
-            </p>
-          )}
+            <div className="flex gap-6 mt-2">
+              <AnaCheck label="Gestação" edit={editAnamnese}
+                checked={anamnese.gestacao} onChange={v => setAnamnese(p => ({...p, gestacao: v}))} />
+              <AnaCheck label="Lactação" edit={editAnamnese}
+                checked={anamnese.lactacao} onChange={v => setAnamnese(p => ({...p, lactacao: v}))} />
+              <AnaCheck label="Tabagismo" edit={editAnamnese}
+                checked={anamnese.tabagismo} onChange={v => setAnamnese(p => ({...p, tabagismo: v}))} />
+            </div>
+          </AnaSection>
+
+          {/* Seção: Contraindicações */}
+          <AnaSection title="Contraindicações">
+            <AnaField label="Contraindicações para procedimentos" edit={editAnamnese}
+              value={anamnese.contraindicacoes} onChange={v => setAnamnese(p => ({...p, contraindicacoes: v}))} multiline />
+          </AnaSection>
+
+          {/* Seção: Hábitos */}
+          <AnaSection title="Hábitos de Vida">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <AnaField label="Consumo de água (copos/dia)" edit={editAnamnese}
+                value={anamnese.consumo_agua} onChange={v => setAnamnese(p => ({...p, consumo_agua: v}))} />
+              <AnaField label="Hábitos alimentares" edit={editAnamnese}
+                value={anamnese.alimentacao} onChange={v => setAnamnese(p => ({...p, alimentacao: v}))} />
+              <AnaField label="Consumo de álcool" edit={editAnamnese}
+                value={anamnese.alcool} onChange={v => setAnamnese(p => ({...p, alcool: v}))} />
+              <AnaField label="Outros hábitos relevantes" edit={editAnamnese}
+                value={anamnese.habitos_vida} onChange={v => setAnamnese(p => ({...p, habitos_vida: v}))} />
+            </div>
+          </AnaSection>
+
+          {/* Seção: Objetivos */}
+          <AnaSection title="Objetivos e Observações">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <AnaField label="Objetivos com o tratamento" edit={editAnamnese}
+                value={anamnese.objetivos} onChange={v => setAnamnese(p => ({...p, objetivos: v}))} multiline />
+              <AnaField label="Observações adicionais" edit={editAnamnese}
+                value={anamnese.obs} onChange={v => setAnamnese(p => ({...p, obs: v}))} multiline />
+            </div>
+          </AnaSection>
         </div>
       )}
 
@@ -271,7 +347,7 @@ export default function ClienteFicha() {
       <Modal open={modalFoto} onClose={() => setModalFoto(false)} title="Adicionar Foto" size="sm">
         {pendingFile && (
           <div className="mb-4">
-            <img src={URL.createObjectURL(pendingFile)} className="w-full h-40 object-cover rounded-xl" alt="preview" />
+            <img src={URL.createObjectURL(pendingFile)} className="w-full h-40 object-cover" style={{ borderRadius: 3 }} alt="preview" />
           </div>
         )}
         <div className="space-y-3">
@@ -301,9 +377,9 @@ export default function ClienteFicha() {
             <X size={28} />
           </button>
           <div className="max-w-2xl w-full" onClick={e => e.stopPropagation()}>
-            <img src={lightbox.url} className="w-full rounded-xl" alt={lightbox.legenda} />
+            <img src={lightbox.url} className="w-full" style={{ borderRadius: 3 }} alt={lightbox.legenda} />
             {(lightbox.legenda || lightbox.area_corporal) && (
-              <div className="bg-black/60 text-white text-sm p-3 rounded-b-xl mt-1">
+              <div className="bg-black/60 text-white text-sm p-3 mt-1" style={{ borderRadius: '0 0 3px 3px' }}>
                 {lightbox.area_corporal && <b>{lightbox.area_corporal}</b>}
                 {lightbox.legenda && <p>{lightbox.legenda}</p>}
               </div>
@@ -311,6 +387,47 @@ export default function ClienteFicha() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function AnaSection({ title, children }) {
+  return (
+    <div className="card space-y-4">
+      <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function AnaField({ label, value, onChange, edit, multiline }) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      {edit
+        ? multiline
+          ? <textarea className="input" rows={3} value={value} onChange={e => onChange(e.target.value)} />
+          : <input className="input" value={value} onChange={e => onChange(e.target.value)} />
+        : <p className="text-sm mt-0.5" style={{ color: value ? 'var(--ink-soft)' : 'var(--muted)', fontStyle: value ? 'normal' : 'italic', minHeight: 20 }}>
+            {value || 'Não informado'}
+          </p>
+      }
+    </div>
+  )
+}
+
+function AnaCheck({ label, checked, onChange, edit }) {
+  return (
+    <div className="flex items-center gap-2">
+      {edit
+        ? <input type="checkbox" id={`chk-${label}`} checked={!!checked} onChange={e => onChange(e.target.checked)}
+            className="w-4 h-4 accent-purple-700" />
+        : <div className="w-4 h-4 flex items-center justify-center"
+            style={{ background: checked ? 'var(--primary)' : 'var(--border)', borderRadius: 2 }}>
+            {checked && <span style={{ color: 'white', fontSize: 10, fontWeight: 700 }}>✓</span>}
+          </div>
+      }
+      <label htmlFor={`chk-${label}`} className="text-sm" style={{ color: 'var(--ink-soft)' }}>{label}</label>
     </div>
   )
 }

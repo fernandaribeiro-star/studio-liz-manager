@@ -12,7 +12,7 @@ const emptyProc = { nome:'', duracao_min:60, valor_padrao:0 }
 export default function Precificacao() {
   const [procedimentos, setProcedimentos] = useState([])
   const [estoque, setEstoque] = useState([])
-  const [config, setConfig] = useState({ aluguel:250, atend_dia:4, dias_mes:20, valor_hora:80 })
+  const [config, setConfig] = useState({ custo_diario:250, atend_dia:10, valor_hora:80 })
   const [insumos, setInsumos] = useState({}) // { proc_id: [{estoque_id, qtd_usada, nome, custo}] }
   const [modal, setModal] = useState(false)
   const [formProc, setFormProc] = useState(emptyProc)
@@ -36,7 +36,7 @@ export default function Precificacao() {
     ])
     setProcedimentos(pr || [])
     setEstoque(est || [])
-    const cfg = { aluguel:250, atend_dia:4, dias_mes:20, valor_hora:80 }
+    const cfg = { custo_diario:250, atend_dia:10, valor_hora:80 }
     ;(cfgs||[]).forEach(c => { cfg[c.chave] = Number(c.valor) || 0 })
     setConfig(cfg)
     // Agrupar insumos por proc
@@ -48,7 +48,7 @@ export default function Precificacao() {
   function custoProc(proc) {
     const ins = insumos[proc.id] || []
     const custoInsumos = ins.reduce((s, i) => s + (i.custo_calculado||0), 0)
-    const rateioAluguel = config.aluguel / (config.atend_dia * config.dias_mes)
+    const rateioAluguel = config.atend_dia > 0 ? config.custo_diario / config.atend_dia : 0
     const custoHora = (config.valor_hora / 60) * (proc.duracao_min || 60)
     return { custoInsumos, rateioAluguel, custoHora, total: custoInsumos + rateioAluguel + custoHora }
   }
@@ -118,11 +118,10 @@ export default function Precificacao() {
       </div>
 
       <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-700 flex flex-wrap gap-4">
-        <span>Aluguel: <b>{fmt(config.aluguel)}/mês</b></span>
+        <span>Custo diário (coworking): <b>{fmt(config.custo_diario)}/dia</b></span>
         <span>Atend./dia: <b>{config.atend_dia}</b></span>
-        <span>Dias/mês: <b>{config.dias_mes}</b></span>
         <span>Valor hora: <b>{fmt(config.valor_hora)}/h</b></span>
-        <span>Rateio por atend: <b>{fmt(config.aluguel/(config.atend_dia*config.dias_mes))}</b></span>
+        <span>Rateio por atend: <b>{fmt(config.atend_dia > 0 ? config.custo_diario / config.atend_dia : 0)}</b></span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -148,7 +147,7 @@ export default function Precificacao() {
               {/* Breakdown custo */}
               <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-xs">
                 <div className="flex justify-between"><span className="text-gray-500">Insumos:</span><span>{fmt(c.custoInsumos)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Rateio aluguel:</span><span>{fmt(c.rateioAluguel)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Rateio coworking:</span><span>{fmt(c.rateioAluguel)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Hora profissional:</span><span>{fmt(c.custoHora)}</span></div>
                 <div className="flex justify-between border-t border-gray-200 pt-1 font-semibold text-sm"><span>Custo total:</span><span className="text-red-600">{fmt(c.total)}</span></div>
               </div>
@@ -235,9 +234,12 @@ export default function Precificacao() {
       {/* Modal config */}
       <Modal open={modalConfig} onClose={() => setModalConfig(false)} title="Configurações globais" size="sm">
         <div className="space-y-3">
-          <div><label className="label">Aluguel mensal (R$)</label><input className="input" type="number" value={cfgEdit.aluguel||''} onChange={e=>setCfgEdit(p=>({...p,aluguel:e.target.value}))} /></div>
-          <div><label className="label">Atendimentos/dia</label><input className="input" type="number" value={cfgEdit.atend_dia||''} onChange={e=>setCfgEdit(p=>({...p,atend_dia:e.target.value}))} /></div>
-          <div><label className="label">Dias trabalhados/mês</label><input className="input" type="number" value={cfgEdit.dias_mes||''} onChange={e=>setCfgEdit(p=>({...p,dias_mes:e.target.value}))} /></div>
+          <div>
+            <label className="label">Custo diário — coworking (R$)</label>
+            <input className="input" type="number" value={cfgEdit.custo_diario||''} onChange={e=>setCfgEdit(p=>({...p,custo_diario:e.target.value}))} />
+            <p className="text-xs text-gray-400 mt-1">Ex: R$ 250/dia ÷ 10 atend = R$ 25/atendimento</p>
+          </div>
+          <div><label className="label">Atendimentos no dia</label><input className="input" type="number" value={cfgEdit.atend_dia||''} onChange={e=>setCfgEdit(p=>({...p,atend_dia:e.target.value}))} /></div>
           <div><label className="label">Valor hora profissional (R$)</label><input className="input" type="number" value={cfgEdit.valor_hora||''} onChange={e=>setCfgEdit(p=>({...p,valor_hora:e.target.value}))} /></div>
           <div className="flex gap-3">
             <button className="btn-ghost flex-1 justify-center" onClick={() => setModalConfig(false)}>Cancelar</button>

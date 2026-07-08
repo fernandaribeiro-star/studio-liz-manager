@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { Layout } from './components/Layout'
+import { WelcomeModal } from './components/WelcomeModal'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Clientes from './pages/Clientes'
@@ -35,6 +36,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <WelcomeModal />
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
