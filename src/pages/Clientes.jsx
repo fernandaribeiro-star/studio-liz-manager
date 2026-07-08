@@ -62,10 +62,13 @@ export default function Clientes() {
   async function save() {
     if (!form.nome.trim()) return showToast('Nome é obrigatório', 'error')
     setSaving(true)
-    if (editId) await supabase.from('clientes').update(form).eq('id', editId)
-    else await supabase.from('clientes').insert(form)
-    setSaving(false); setModal(false)
-    showToast('Salvo ✓'); load()
+    const payload = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v === '' ? null : v]))
+    const { error } = editId
+      ? await supabase.from('clientes').update(payload).eq('id', editId)
+      : await supabase.from('clientes').insert(payload)
+    setSaving(false)
+    if (error) { showToast('Erro ao salvar', 'error'); return }
+    setModal(false); showToast('Salvo ✓'); load()
   }
 
   async function del() {
